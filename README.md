@@ -36,7 +36,7 @@ PGpath/
 |-- pgpath_scaler_stats.csv
 |-- trained_model.pth
 |-- labels.csv
-|-- graph_20260520.gfa
+`-- graph_20260520.gfa
 ```
 
 ### 2.1 Core Scripts
