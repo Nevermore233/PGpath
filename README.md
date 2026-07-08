@@ -1,4 +1,4 @@
-# PGpath
+# PGpath: pangenome subpath-based recommendation of population-adapted linear reference genomes
 
 PGpath is a pangenome-based framework for recommending population-adapted linear reference genomes. Given paired-end sequencing reads from a target population, PGpath extracts population-level k-mer frequency features, predicts branch-node selections in a pangenome graph, and reconstructs a population-adapted linear reference genome in FASTA format.
 
@@ -35,7 +35,7 @@ PGpath/
 └── graph_20260520.gfa
 
 
-Main scripts
+## Main scripts
 | Script                                 | Description                                                                                              |
 | -------------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | `pgpath.py`                            | One-command PGpath pipeline for direct use.                                                              |
@@ -46,7 +46,7 @@ Main scripts
 | `extract_training_kmers_and_scaler.py` | Exports selected k-mers and StandardScaler statistics from the training feature matrix.                  |
 
 
-Requirements
+## Requirements
 Python packages
 
 PGpath requires Python 3.9 or later. The main Python dependencies are:
@@ -55,7 +55,7 @@ pip install numpy pandas scipy scikit-learn torch
 ```
 
 
-Jellyfish
+## Jellyfish
 
 PGpath uses Jellyfish to count k-mers from FASTQ files.
 
@@ -76,7 +76,7 @@ Check installation:
 jellyfish --version
 ```
 
-Direct use
+## Direct use
 
 For most users, the recommended entry point is:
 
