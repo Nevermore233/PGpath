@@ -16,7 +16,7 @@ PGpath supports two main use cases:
   - Output: a PGpath-derived population-adapted FASTA reference.
 
 - **Model retraining**
-  - Start from `train_pangenome3_refactored_v4.py`.
+  - Start from `pgpath_train.py`.
   - Input: training k-mer features, branch-node labels, and branch-node topological relations.
   - Output: a trained PGpath model and inference resources.
 
@@ -27,16 +27,18 @@ PGpath supports two main use cases:
 ```text
 PGpath/
 |-- pgpath.py
-|-- build_population_kmer_features.py
-|-- inference_refactored_v2.py
-|-- reconstruct_genome2_refactored_v3.py
-|-- train_pangenome3_refactored_v4.py
-|-- extract_training_kmers_and_scaler.py
+|-- pgpath_prepare_features.py
+|-- pgpath_infer.py
+|-- pgpath_reconstruct.py
+|-- pgpath_train.py
+|-- pgpath_kmer_profile.py
 |-- pgpath_selected_kmers.txt
 |-- pgpath_scaler_stats.csv
 |-- trained_model.pth
 |-- labels.csv
-`-- graph_20260520.gfa
+|-- label_relations.csv
+|-- features_rigorous_filtered_2005.csv
+`-- pangenome_graph_default.gfa
 ```
 
 ### 2.1 Core Scripts
@@ -44,11 +46,11 @@ PGpath/
 | Script | Function |
 | --- | --- |
 | `pgpath.py` | One-command PGpath pipeline for direct use. |
-| `build_population_kmer_features.py` | Counts selected k-mers from paired-end FASTQ files and builds population-level k-mer frequency features. |
-| `inference_refactored_v2.py` | Predicts branch-node labels using a trained PGpath model. |
-| `reconstruct_genome2_refactored_v3.py` | Reconstructs a PGpath-derived linear FASTA reference from predicted branch-node labels and a GFA graph. |
-| `train_pangenome3_refactored_v4.py` | Trains the topology-aware multi-task branch-node prediction model. |
-| `extract_training_kmers_and_scaler.py` | Exports selected k-mers and StandardScaler statistics from the training feature matrix. |
+| `pgpath_prepare_features.py` | Counts selected k-mers from paired-end FASTQ files and builds population-level k-mer frequency features. |
+| `pgpath_infer.py` | Predicts branch-node labels using a trained PGpath model. |
+| `pgpath_reconstruct.py` | Reconstructs a PGpath-derived linear FASTA reference from predicted branch-node labels and a GFA graph. |
+| `pgpath_train.py` | Trains the topology-aware multi-task branch-node prediction model. |
+| `pgpath_kmer_profile.py` | Exports selected k-mers and StandardScaler statistics from the training feature matrix. |
 
 ### 2.2 Default Resource Files
 
@@ -60,9 +62,9 @@ For **direct use**, the following resource files should be placed in the same di
 | `pgpath_scaler_stats.csv` | StandardScaler statistics exported from the training feature matrix. |
 | `trained_model.pth` | Trained PGpath model weights. |
 | `labels.csv` | Branch-node label file used to rebuild label mappings during inference. |
-| `graph_20260520.gfa` | Pangenome graph used for reference reconstruction. |
+| `pangenome_graph_default.gfa` | Pangenome graph used for reference reconstruction, constructed from five reference genomes: T2T-CHM13, GRCh38, HG002, T2T-YAO, and NA19240. |
 
-> Large files such as `trained_model.pth` and `graph_20260520.gfa` can be distributed through GitHub Releases, Git LFS, Zenodo, Figshare, or another external file-hosting service.
+> Large files such as `trained_model.pth` and `pangenome_graph_default.gfa` can be distributed through GitHub Releases, Git LFS, Zenodo, Figshare, or another external file-hosting service.
 
 ---
 
@@ -119,7 +121,7 @@ python pgpath.py \
   --scaler-stats pgpath_scaler_stats.csv \
   -m trained_model.pth \
   -l labels.csv \
-  -g graph_20260520.gfa \
+  -g pangenome_graph_default.gfa \
   -n new_population \
   --threads 16 \
   --hash-size 1G \
@@ -135,7 +137,7 @@ python pgpath.py \
 | — | `--scaler-stats` | `pgpath_scaler_stats.csv` | CSV file containing StandardScaler statistics exported from the training feature matrix. These statistics ensure that new population k-mer features are normalized consistently with model training. |
 | `-m` | `--model` | `trained_model.pth` | Trained PGpath model weights used for branch-node prediction. |
 | `-l` | `--labels` | `labels.csv` | Branch-node label file used to rebuild the mapping between model output classes and original pangenome graph node IDs. |
-| `-g` | `--gfa` | `graph_20260520.gfa` | Input pangenome graph in GFA format. PGpath reconstructs the final linear reference from this graph and the predicted branch-node labels. |
+| `-g` | `--gfa` | `pangenome_graph_default.gfa` | Input pangenome graph in GFA format. PGpath reconstructs the final linear reference from this graph and the predicted branch-node labels. |
 | `-n` | `--population-name` | `new_population` | Population name used as the row identifier in intermediate feature and prediction files. |
 | — | `--threads` | `16` | Number of threads used by Jellyfish for k-mer counting. |
 | — | `--hash-size` | `1G` | Jellyfish hash size for k-mer counting. Increase this value for large sequencing datasets if needed. |
@@ -253,7 +255,7 @@ The one-command pipeline performs three steps.
 
 **Step 1: Population-Level k-mer Feature Construction**
 
-`build_population_kmer_features.py` counts selected k-mers from each paired-end sample using Jellyfish. For each sample, selected k-mer counts are normalized by the total count of selected k-mers in that sample. Normalized sample-level vectors are averaged across all samples.
+`pgpath_prepare_features.py` counts selected k-mers from each paired-end sample using Jellyfish. For each sample, selected k-mer counts are normalized by the total count of selected k-mers in that sample. Normalized sample-level vectors are averaged across all samples.
 
 The resulting feature file has one row:
 
@@ -264,7 +266,7 @@ new_population,0.00057,0.00054,0.00086,...
 
 **Step 2: Branch-Node Inference**
 
-`inference_refactored_v2.py` standardizes the population-level k-mer feature vector using `pgpath_scaler_stats.csv` and predicts branch-node labels with the trained PGpath model.
+`pgpath_infer.py` standardizes the population-level k-mer feature vector using `pgpath_scaler_stats.csv` and predicts branch-node labels with the trained PGpath model.
 
 The prediction file has the following format:
 
@@ -275,7 +277,7 @@ new_population,s123,s456,s789,...
 
 **5.3 Step 3: Reference Reconstruction**
 
-`reconstruct_genome2_refactored_v3.py` traverses the primary backbone nodes in the GFA graph and inserts predicted non-backbone branch paths only when they connect from the current backbone node and rejoin a downstream backbone node on the same chromosome.
+`pgpath_reconstruct.py` traverses the primary backbone nodes in the GFA graph and inserts predicted non-backbone branch paths only when they connect from the current backbone node and rejoin a downstream backbone node on the same chromosome.
 
 The final output is a linear FASTA reference.
 
@@ -296,7 +298,7 @@ Use this section only when training a new PGpath model.
 **Train a New PGpath Model**
 
 ```bash
-python train_pangenome3_refactored_v4.py \
+python pgpath_train.py \
   -i features_rigorous_filtered_2005.csv \
   -l labels.csv \
   -r label_relations.csv \
@@ -311,7 +313,7 @@ python train_pangenome3_refactored_v4.py \
 After training, export the selected k-mer list and scaler statistics from the training feature matrix:
 
 ```bash
-python extract_training_kmers_and_scaler.py \
+pgpath_kmer_profile.py \
   -i features_rigorous_filtered_2005.csv \
   -k pgpath_selected_kmers.txt \
   -s pgpath_scaler_stats.csv
