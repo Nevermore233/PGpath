@@ -109,14 +109,14 @@ For most users, only two arguments are required:
 ```bash
 python pgpath.py \
   -i /path/to/fastq_folder \
-  -o PGpath_reference_new_population.fasta
+  -o PGpath_based_reference.fasta
 ```
 Full command with explicit resources:
 
 ```bash
 python pgpath.py \
   -i /path/to/fastq_folder \
-  -o PGpath_reference_new_population.fasta \
+  -o PGpath_based_reference.fasta \
   -k pgpath_selected_kmers.txt \
   --scaler-stats pgpath_scaler_stats.csv \
   -m trained_model.pth \
@@ -151,7 +151,7 @@ Default behavior:
 ```bash
 python pgpath.py \
   -i /path/to/fastq_folder \
-  -o PGpath_reference_new_population.fasta \
+  -o PGpath_based_reference.fasta \
   --chrom-name-style chm13
 ```
 
@@ -160,7 +160,7 @@ Keep chromosome names exactly as stored in the GFA file:
 ```bash
 python pgpath.py \
   -i /path/to/fastq_folder \
-  -o PGpath_reference_new_population.fasta \
+  -o PGpath_based_reference.fasta \
   --chrom-name-style as-is
 ```
 
@@ -169,7 +169,7 @@ Use a custom chromosome-name mapping file:
 ```bash
 python pgpath.py \
   -i /path/to/fastq_folder \
-  -o PGpath_reference_new_population.fasta \
+  -o PGpath_based_reference.fasta \
   --chrom-map chrom_name_map.csv
 ```
 
@@ -223,7 +223,7 @@ By default, PGpath searches FASTQ files only in the provided folder. Use `--recu
 ```bash
 python pgpath.py \
   -i /path/to/fastq_folder \
-  -o PGpath_reference_new_population.fasta \
+  -o PGpath_based_reference.fasta \
   --recursive
 ```
 ---
@@ -235,7 +235,7 @@ The main output is a FASTA file. This FASTA file is the PGpath-derived populatio
 ```bash
 python pgpath.py \
   -i /path/to/fastq_folder \
-  -o PGpath_reference_new_population.fasta \
+  -o PGpath_based_reference.fasta \
   --keep-intermediate
 ```
 
