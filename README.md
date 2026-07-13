@@ -126,6 +126,7 @@ python pgpath.py \
   --threads 16 \
   --hash-size 1G \
   --device auto \
+  --temp-dir /path/to/temp_folder \
   --chrom-name-style chm13
 ```
 
@@ -142,8 +143,7 @@ python pgpath.py \
 | — | `--threads` | `16` | Number of threads used by Jellyfish for k-mer counting. |
 | — | `--hash-size` | `1G` | Jellyfish hash size for k-mer counting. Increase this value for large sequencing datasets if needed. |
 | — | `--device` | `auto` | Device used for neural network inference. Options are `auto`, `cpu`, and `cuda`. With `auto`, PGpath uses CUDA if available, otherwise CPU. |
-| — | `--temp-dir` | System temporary directory | Parent directory used to create a run-specific directory for temporary Jellyfish databases. A filesystem with sufficient free space is recommended for large sequencing datasets. |
-| — | `--keep-temp` | Disabled | Retains the run-specific Jellyfish temporary directory and sample databases for debugging. By default, each sample database is removed immediately after querying, and the run-specific temporary directory is removed after completion. |
+| — | `--temp-dir` | `system temporary directory` | Parent directory used to create a run-specific directory for temporary Jellyfish databases. A filesystem with sufficient free space is recommended for large sequencing datasets. |
 | — | `--chrom-name-style` | `chm13` | Chromosome naming style for the output FASTA. Use `chm13` to convert known T2T-CHM13 RefSeq accessions such as `NC_060925.1` to `chr1`. Use `as-is` to keep chromosome names from the GFA file unchanged. |
 
 When the GFA backbone uses T2T-CHM13 RefSeq accessions, PGpath can convert chromosome names such as `NC_060925.1` to `chr1` in the output FASTA.
