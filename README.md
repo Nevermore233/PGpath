@@ -64,15 +64,16 @@ For **direct use**, the following resource files should be placed in the same di
 | `labels.csv` | Branch-node label file used to rebuild label mappings during inference. |
 | `pangenome_graph_default.gfa` | Pangenome graph used for reference reconstruction, constructed from five reference genomes: T2T-CHM13, GRCh38, HG002, T2T-YAO, and NA19240. |
 
-**Download link for large files:**
-`pangenome_graph_default.gfa`   [Download GFA file](https://1860581393.share.123pan.cn/123pan/B1c5vd-HCIe3)  
+**Download link for large files:**  
+
+`pangenome_graph_default.gfa`  | [Download GFA file](https://1860581393.share.123pan.cn/123pan/B1c5vd-HCIe3) |  
 
 `labels.csv`  | [Download label matrix](https://1860581393.share.123pan.cn/123pan/B1c5vd-Zl1e3) |  
 
 `trained_model.pth`  | [Download trained model](https://1860581393.share.123pan.cn/123pan/B1c5vd-Zl1e3) |  
 
-
 After downloading, place the resource files in the PGpath project directory or specify their locations using the corresponding command-line arguments.
+
 ---
 
 ## 3. Requirements
