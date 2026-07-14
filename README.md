@@ -70,7 +70,7 @@ For **direct use**, the following resource files should be placed in the same di
 
 `labels.csv`  | [Download label matrix](https://1860581393.share.123pan.cn/123pan/B1c5vd-Zl1e3) |  
 
-`trained_model.pth`  | [Download trained model](https://1860581393.share.123pan.cn/123pan/B1c5vd-Zl1e3) |  
+`trained_model.pth`  | [Download trained model](https://1860581393.share.123pan.cn/123pan/B1c5vd-FSOc3) |  
 
 After downloading, place the resource files in the PGpath project directory or specify their locations using the corresponding command-line arguments.
 
