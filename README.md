@@ -4,6 +4,16 @@
 
 > The generated reference preserves population-relevant pangenome sequences while remaining compatible with standard linear-reference workflows, including read mapping and variant detection.
 
+## Contents
+
+- [1. Overview](#1-overview)
+- [2. Repository Structure](#2-repository-structure)
+- [3. Requirements](#3-requirements)
+- [4. Direct Use with a Pretrained Model](#4-direct-use-with-a-pretrained-model)
+- [5. Internal Workflow of `pgpath.py`](#5-internal-workflow-of-pgpathpy)
+- [6. Model Retraining](#6-model-retraining)
+- [7. Citation](#7-citation)
+
 ---
 
 ## 1. Overview
@@ -18,7 +28,9 @@ PGpath supports two main use cases:
 - **Model retraining**
   - Start from `pgpath_train.py`.
   - Input: training k-mer features, branch-node labels, and branch-node topological relations.
-  - Output: a trained PGpath model and inference resources.
+  - Output: a trained PGpath model and matched inference resources.
+
+This repository contains the main PGpath program. Ablation-study and supplementary-experiment workflows are not included here.
 
 ---
 
@@ -34,10 +46,10 @@ PGpath/
 |-- pgpath_kmer_profile.py
 |-- pgpath_selected_kmers.txt
 |-- pgpath_scaler_stats.csv
+|-- features_rigorous_filtered_1967.csv
 |-- trained_model.pth
 |-- labels.csv
 |-- label_relations.csv
-|-- features_rigorous_filtered_2005.csv
 `-- pangenome_graph_default.gfa
 ```
 
@@ -46,11 +58,11 @@ PGpath/
 | Script | Function |
 | --- | --- |
 | `pgpath.py` | One-command PGpath pipeline for direct use. |
-| `pgpath_prepare_features.py` | Counts selected k-mers from paired-end FASTQ files and builds population-level k-mer frequency features. |
+| `pgpath_kmer_profile.py` | Counts selected k-mers from paired-end FASTQ files and builds population-level k-mer frequency features. |
 | `pgpath_infer.py` | Predicts branch-node labels using a trained PGpath model. |
 | `pgpath_reconstruct.py` | Reconstructs a PGpath-derived linear FASTA reference from predicted branch-node labels and a GFA graph. |
 | `pgpath_train.py` | Trains the topology-aware multi-task branch-node prediction model. |
-| `pgpath_kmer_profile.py` | Exports selected k-mers and StandardScaler statistics from the training feature matrix. |
+| `pgpath_prepare_features.py` | Exports selected k-mers and StandardScaler statistics from a training feature matrix. |
 
 ### 2.2 Default Resource Files
 
@@ -58,21 +70,23 @@ For **direct use**, the following resource files should be placed in the same di
 
 | File | Description |
 | --- | --- |
-| `pgpath_selected_kmers.txt` | Selected k-mer list used by PGpath. |
-| `pgpath_scaler_stats.csv` | StandardScaler statistics exported from the training feature matrix. |
+| `pgpath_selected_kmers.txt` | Selected list of 1,967 31-mers used by PGpath, one k-mer per line. |
+| `pgpath_scaler_stats.csv` | StandardScaler statistics for the same 1,967 k-mers. The file has 1,967 data rows and is in exactly the same order as `pgpath_selected_kmers.txt`. |
 | `trained_model.pth` | Trained PGpath model weights. |
 | `labels.csv` | Branch-node label file used to rebuild label mappings during inference. |
 | `pangenome_graph_default.gfa` | Pangenome graph used for reference reconstruction, constructed from five reference genomes: T2T-CHM13, GRCh38, HG002, T2T-YAO, and NA19240. |
 
-**Download link for large files:**  
+**Download links for large files:**
 
-`pangenome_graph_default.gfa`  | [Download GFA file](https://1860581393.share.123pan.cn/123pan/B1c5vd-HCIe3) |  
-
-`labels.csv`  | [Download label matrix](https://1860581393.share.123pan.cn/123pan/B1c5vd-Zl1e3) |  
-
-`trained_model.pth`  | [Download trained model](https://1860581393.share.123pan.cn/123pan/B1c5vd-FSOc3) |  
+| File | Link |
+| --- | --- |
+| `pangenome_graph_default.gfa` | [Download GFA file](https://1860581393.share.123pan.cn/123pan/B1c5vd-HCIe3) |
+| `labels.csv` | [Download label matrix](https://1860581393.share.123pan.cn/123pan/B1c5vd-Zl1e3) |
+| `trained_model.pth` | [Download trained model](https://1860581393.share.123pan.cn/123pan/B1c5vd-FSOc3) |
 
 After downloading, place the resource files in the PGpath project directory or specify their locations using the corresponding command-line arguments.
+
+> **Resource compatibility:** `pgpath_selected_kmers.txt`, `pgpath_scaler_stats.csv`, `trained_model.pth`, and `labels.csv` form one compatible inference resource set. Do not mix files exported or trained from different feature sets. PGpath checks the selected k-mer/scaler pairing and model dimensions before prediction.
 
 ---
 
@@ -86,9 +100,15 @@ PGpath requires **Python 3.9 or later**. Install the required Python packages:
 pip install numpy pandas scipy scikit-learn torch
 ```
 
+Optionally verify the installation:
+
+```bash
+python -c "import numpy, pandas, scipy, sklearn, torch; print('Python dependencies OK')"
+```
+
 ### 3.2 Jellyfish
 
-PGpath uses **Jellyfish** for k-mer counting.Install Jellyfish with Conda:
+PGpath uses **Jellyfish** for k-mer counting. Install Jellyfish with Conda:
 
 ```bash
 conda install -c bioconda jellyfish
@@ -106,11 +126,20 @@ Check whether Jellyfish is available:
 jellyfish --version
 ```
 
+If Jellyfish is not on `PATH`, provide the executable explicitly with `--jellyfish /path/to/jellyfish`.
+
 ---
 
 ## 4. Direct Use with a Pretrained Model
 
 ### 4.1 Required Arguments
+
+Before the first run, confirm that:
+
+- each sample has both an R1 file and an R2 file;
+- the five default inference resource files listed in Section 2.2 are available;
+- `pgpath_selected_kmers.txt` and `pgpath_scaler_stats.csv` both contain 1,967 k-mers in the same order; and
+- the output directory and the temporary filesystem have sufficient free space.
 
 For most users, only two arguments are required:
 
@@ -119,6 +148,7 @@ python pgpath.py \
   -i /path/to/fastq_folder \
   -o PGpath_based_reference.fasta
 ```
+
 Full command with explicit resources:
 
 ```bash
@@ -139,20 +169,40 @@ python pgpath.py \
 ```
 
 | Short option | Long option | Requirement or default | Description |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `-i` | `--input-dir` | Required | Directory containing paired-end FASTQ files from the target population. |
 | `-o` | `--output` | Required | Output FASTA file for the PGpath-derived population-adapted linear reference genome. |
-| `-k` | `--kmers` | `pgpath_selected_kmers.txt` | Text file containing selected PGpath k-mers, one k-mer per line. |
-| — | `--scaler-stats` | `pgpath_scaler_stats.csv` | CSV file containing StandardScaler statistics exported from the training feature matrix. These statistics ensure that new population k-mer features are normalized consistently with model training. |
+| `-k` | `--kmers` | `pgpath_selected_kmers.txt` | Text file containing the 1,967 selected PGpath k-mers, one k-mer per line. |
+| - | `--scaler-stats` | `pgpath_scaler_stats.csv` | CSV file containing the 1,967 matched StandardScaler statistics. These statistics ensure that new population k-mer features are normalized consistently with model training. |
 | `-m` | `--model` | `trained_model.pth` | Trained PGpath model weights used for branch-node prediction. |
 | `-l` | `--labels` | `labels.csv` | Branch-node label file used to rebuild the mapping between model output classes and original pangenome graph node IDs. |
 | `-g` | `--gfa` | `pangenome_graph_default.gfa` | Input pangenome graph in GFA format. PGpath reconstructs the final linear reference from this graph and the predicted branch-node labels. |
 | `-n` | `--population-name` | `new_population` | Population name used as the row identifier in intermediate feature and prediction files. |
-| — | `--threads` | `16` | Number of threads used by Jellyfish for k-mer counting. |
-| — | `--hash-size` | `1G` | Jellyfish hash size for k-mer counting. Increase this value for large sequencing datasets if needed. |
-| — | `--device` | `auto` | Device used for neural network inference. Options are `auto`, `cpu`, and `cuda`. With `auto`, PGpath uses CUDA if available, otherwise CPU. |
-| — | `--temp-dir` | `system temporary directory` | Parent directory used to create a run-specific directory for temporary Jellyfish databases. A filesystem with sufficient free space is recommended for large sequencing datasets. |
-| — | `--chrom-name-style` | `chm13` | Chromosome naming style for the output FASTA. Use `chm13` to convert known T2T-CHM13 RefSeq accessions such as `NC_060925.1` to `chr1`. Use `as-is` to keep chromosome names from the GFA file unchanged. |
+| - | `--threads` | `16` | Number of threads used by Jellyfish for k-mer counting. |
+| - | `--hash-size` | `1G` | Jellyfish hash size for k-mer counting. Increase this value for large sequencing datasets if needed. |
+| - | `--device` | `auto` | Device used for neural network inference: `auto`, `cpu`, or `cuda`. With `auto`, PGpath uses CUDA if available, otherwise CPU. |
+| - | `--temp-dir` | System temporary directory | Parent directory used to create run-specific Jellyfish databases. Use a filesystem with sufficient free space for large sequencing datasets. |
+| - | `--chrom-name-style` | `chm13` | Chromosome naming style for the output FASTA. Use `chm13` to convert known T2T-CHM13 RefSeq accessions such as `NC_060925.1` to `chr1`; use `as-is` to retain the GFA names. |
+
+Useful additional options:
+
+| Option | Purpose |
+| --- | --- |
+| `--recursive` | Search for FASTQ files in nested subdirectories. |
+| `--jellyfish /path/to/jellyfish` | Use a Jellyfish executable that is not on `PATH`. |
+| `--work-dir DIR` | Set the directory for intermediate feature and prediction CSV files. |
+| `--keep-intermediate` | Retain the generated feature and prediction CSV files. |
+| `--keep-temp` | Retain temporary Jellyfish databases for debugging. |
+| `--save-sample-matrix FILE` | Save per-sample normalized k-mer frequencies. |
+| `--skip-zero-count-samples` | Skip, rather than stop on, samples whose selected-k-mer total is zero. |
+| `--hidden-dim N` | Set the model hidden dimension; it must match the setting used to train the model. |
+| `--max-skip-bp N` | Limit the number of backbone bases that one alternative path may replace; default: 500,000. |
+| `--max-alt-steps N` | Limit graph traversal steps for one alternative path; default: 1,000. |
+| `--line-width N` | Set the FASTA sequence line width; default: 80. |
+| `--chrom-map FILE` | Apply a custom CSV/TSV chromosome-name mapping after the selected naming style. |
+| `--allow-unmapped-chroms` | Keep names absent from a requested chromosome mapping instead of raising an error. |
+
+Run `python pgpath.py --help` to see all current options and defaults.
 
 When the GFA backbone uses T2T-CHM13 RefSeq accessions, PGpath can convert chromosome names such as `NC_060925.1` to `chr1` in the output FASTA.
 
@@ -191,10 +241,11 @@ NC_060925.1,chr1
 NC_060926.1,chr2
 NC_060927.1,chr3
 ```
----
+
 ### 4.2 Supported FASTQ File Extensions
 
-A folder may contain multiple paired-end sample:
+A folder may contain multiple paired-end samples:
+
 ```text
 sample1_R1.fastq.gz
 sample1_R2.fastq.gz
@@ -212,6 +263,7 @@ PGpath recognizes the following FASTQ file extensions:
 .fastq
 .fq
 ```
+
 PGpath identifies paired-end samples from file names. The mate identifier must be clearly separated from the sample name by `_`, `-`, or `.`.
 
 Supported examples:
@@ -221,13 +273,16 @@ sample1_R1.fastq.gz
 sample1_R2.fastq.gz
 sample1_1.fq.gz
 sample1_2.fq.gz
-sample1-L001**-**R1-001.fastq.gz
-sample1-L001**-**R2-001.fastq.gz
-sample1_L001**_**R1_001.fastq.gz
-sample1_L001**_**R2_001.fastq.gz
-sample1_L002**_**R1_001.fastq.gz
-sample1_L002**_**R2_001.fastq.gz
+sample1-L001-R1-001.fastq.gz
+sample1-L001-R2-001.fastq.gz
+sample1_L001_R1_001.fastq.gz
+sample1_L001_R2_001.fastq.gz
+sample1_L002_R1_001.fastq.gz
+sample1_L002_R2_001.fastq.gz
 ```
+
+Lane-split files that resolve to the same sample name are grouped together. Files with unrecognized mate naming and samples missing either R1 or R2 are reported and ignored. If no complete pair is found, PGpath stops with an error.
+
 By default, PGpath searches FASTQ files only in the provided folder. Use `--recursive` if FASTQ files are stored in nested subdirectories:
 
 ```bash
@@ -236,11 +291,12 @@ python pgpath.py \
   -o PGpath_based_reference.fasta \
   --recursive
 ```
----
 
 ### 4.3 Output Files
 
-The main output is a FASTA file. This FASTA file is the PGpath-derived population-adapted linear reference genome. By default, intermediate files are removed after the final FASTA is generated. Use `--keep-intermediate` to retain them:
+The main output is a FASTA file containing the PGpath-derived population-adapted linear reference genome. PGpath writes the FASTA atomically, so a reconstruction failure does not leave a partially written final file.
+
+By default, generated feature and prediction CSV files are removed when the run ends, including when a later pipeline step fails. Use `--keep-intermediate` to retain them for inspection or debugging:
 
 ```bash
 python pgpath.py \
@@ -253,21 +309,36 @@ Intermediate files include:
 
 | File | Description |
 | --- | --- |
-| `new_population.features.csv` | Population-level normalized k-mer frequency vector. |
+| `new_population.features.csv` | One-row population-level normalized k-mer frequency vector containing the 1,967 selected k-mers. |
 | `new_population.predicted_paths.csv` | Predicted branch-node labels for reference reconstruction. |
+
+Use `--work-dir`, `--population-feature-output`, and `--prediction-output` to control intermediate paths. To keep these files after the run, also specify `--keep-intermediate`.
 
 ---
 
-
 ## 5. Internal Workflow of `pgpath.py`
 
-The one-command pipeline performs three steps.
+The one-command pipeline performs three steps:
+
+```mermaid
+flowchart LR
+    A[Paired-end FASTQ files] --> B[1. K-mer profiling]
+    K[1,967 selected 31-mers] --> B
+    B --> C[Population feature CSV]
+    C --> D[2. Branch-node inference]
+    S[Matched scaler statistics] --> D
+    M[Model weights and labels] --> D
+    D --> E[Predicted branch nodes]
+    E --> F[3. Backbone-guided reconstruction]
+    G[Pangenome GFA] --> F
+    F --> H[Population-adapted FASTA]
+```
 
 **Step 1: Population-Level k-mer Feature Construction**
 
-`pgpath_prepare_features.py` counts selected k-mers from each paired-end sample using Jellyfish. For each sample, selected k-mer counts are normalized by the total count of selected k-mers in that sample. Normalized sample-level vectors are averaged across all samples.
+`pgpath_kmer_profile.py` counts the 1,967 selected k-mers from each paired-end sample using Jellyfish. For each sample, selected k-mer counts are normalized by the total count of selected k-mers in that sample. Normalized sample-level vectors are averaged across all valid samples.
 
-The resulting feature file has one row:
+The resulting feature file has one row and preserves the selected k-mer order:
 
 ```csv
 sample_id,kmer_1,kmer_2,kmer_3,...
@@ -276,7 +347,7 @@ new_population,0.00057,0.00054,0.00086,...
 
 **Step 2: Branch-Node Inference**
 
-`pgpath_infer.py` standardizes the population-level k-mer feature vector using `pgpath_scaler_stats.csv` and predicts branch-node labels with the trained PGpath model.
+`pgpath_infer.py` standardizes the population-level k-mer feature vector using `pgpath_scaler_stats.csv` and predicts branch-node labels with the trained PGpath model. Before prediction, the program validates feature names, numeric values, selected k-mer/scaler order, and model dimensions. Invalid padded output classes are masked before branch labels are decoded.
 
 The prediction file has the following format:
 
@@ -285,9 +356,9 @@ Sample_ID,branch_1,branch_2,branch_3,...
 new_population,s123,s456,s789,...
 ```
 
-**5.3 Step 3: Reference Reconstruction**
+**Step 3: Reference Reconstruction**
 
-`pgpath_reconstruct.py` traverses the primary backbone nodes in the GFA graph and inserts predicted non-backbone branch paths only when they connect from the current backbone node and rejoin a downstream backbone node on the same chromosome.
+`pgpath_reconstruct.py` traverses the ordered primary backbone nodes in the GFA graph and inserts a predicted non-backbone branch path only when it connects from the current backbone node and rejoins a downstream backbone node on the same chromosome. Unsafe alternatives, including cycles, ambiguous connections, missing sequences, upstream or cross-chromosome re-entry, and paths beyond the configured limits, fall back to the backbone path.
 
 The final output is a linear FASTA reference.
 
@@ -297,19 +368,32 @@ The final output is a linear FASTA reference.
 
 Use this section only when training a new PGpath model.
 
-**Required Training Files**
+### 6.1 Data Partitioning and Leakage Prevention
+
+For a new dataset, split independent source samples into disjoint **60% training, 20% validation, and 20% test source pools before constructing simulated populations**. Construct populations independently within each source pool.
+
+- Perform data-dependent filtering and k-mer feature selection using the training partition only.
+- Fit the StandardScaler and export inference scaler statistics using the training partition only.
+- Use the validation partition for hyperparameter selection.
+- Reserve the test partition for final evaluation only.
+
+`pgpath_train.py` expects an already prepared training partition; it does not perform the source split, population construction, feature selection, or validation/test evaluation.
+
+### 6.2 Train a New PGpath Model
+
+Required training files:
 
 | File | Description |
 | --- | --- |
-| `features_rigorous_filtered_2005.csv` | Training k-mer feature matrix. |
-| `labels.csv` | Branch-node label matrix. |
+| `features_rigorous_filtered_1967.csv` | Prepared training k-mer feature matrix containing the 1,967 selected features. |
+| `labels.csv` | Branch-node label matrix aligned to the feature-matrix sample IDs. |
 | `label_relations.csv` | Branch-node topological relation file. |
 
-**Train a New PGpath Model**
+Run:
 
 ```bash
 python pgpath_train.py \
-  -i features_rigorous_filtered_2005.csv \
+  -i features_rigorous_filtered_1967.csv \
   -l labels.csv \
   -r label_relations.csv \
   -o trained_model.pth \
@@ -318,13 +402,16 @@ python pgpath_train.py \
   --lambda-graph 1e-4 \
   --device auto
 ```
-**Export Selected k-mers and Scaler Statistics**
 
-After training, export the selected k-mer list and scaler statistics from the training feature matrix:
+The default training configuration uses 500 epochs, batch size 64, hidden dimension 1,024, dropout 0.3, Adam learning rate `1e-3`, weight decay `1e-5`, topology-aware loss weight `1e-4`, and random seed 42.
+
+### 6.3 Export Selected k-mers and Scaler Statistics
+
+After finalizing the training-only feature matrix, export the selected k-mer list and scaler statistics from that same matrix:
 
 ```bash
-pgpath_kmer_profile.py \
-  -i features_rigorous_filtered_2005.csv \
+python pgpath_prepare_features.py \
+  -i features_rigorous_filtered_1967.csv \
   -k pgpath_selected_kmers.txt \
   -s pgpath_scaler_stats.csv
 ```
@@ -336,9 +423,10 @@ pgpath_selected_kmers.txt
 pgpath_scaler_stats.csv
 ```
 
-These files are required for downstream inference.
+These files are required for downstream inference and must be kept together in the exported k-mer order. Do not use validation, test, or pooled data when generating the scaler statistics.
 
 ---
 
 ## 7. Citation
+
 If you use PGpath in your work, please cite the corresponding PGpath manuscript.
