@@ -380,8 +380,6 @@ Use this section only when training a new PGpath model.
 
 With the default settings, the script first holds out 40% of the input rows, then divides that held-out set equally into validation and test partitions. The feature-label pairing is preserved. The same seed and the same ordered input reproduce the partition membership. Actual counts may differ slightly from the requested percentages because sample counts must be integers; the script prints the resulting counts.
 
-**Preprocessing behavior:** The script fits `StandardScaler` on the entire input feature matrix and builds label mappings before splitting the data. Therefore, the held-out rows are excluded from model optimization but still contribute to preprocessing. The current implementation should not be described as a strictly leakage-free validation/test workflow. A source-level evaluation with training-only preprocessing requires a separately implemented workflow.
-
 ### 6.2 Train a New PGpath Model
 
 Required input files:
