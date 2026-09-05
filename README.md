@@ -27,8 +27,8 @@ PGpath supports two main use cases:
 
 - **Model retraining**
   - Start from `pgpath_train.py`.
-  - Input: training k-mer features, branch-node labels, and branch-node topological relations.
-  - Output: a trained PGpath model and matched inference resources.
+  - Input: a prepared k-mer feature matrix, aligned branch-node labels, and branch-node topological relations.
+  - Output: trained PGpath model weights (`.pth`). Export the selected k-mer list and scaler statistics separately with `pgpath_prepare_features.py` (Section 6.3).
 
 This repository contains the main PGpath program. Ablation-study and supplementary-experiment workflows are not included here.
 
@@ -82,7 +82,7 @@ For **direct use**, the following resource files should be placed in the same di
 | --- | --- |
 | `pangenome_graph_default.gfa` | [Download GFA file](https://1860581393.share.123pan.cn/123pan/B1c5vd-HCIe3) |
 | `labels.csv` | [Download label matrix](https://1860581393.share.123pan.cn/123pan/B1c5vd-Zl1e3) |
-| `trained_model.pth` | [Download trained model](https://1860581393.share.123pan.cn/123pan/B1c5vd-FSOc3) |
+| `trained_model.pth` | [Download trained model](https://1860581393.share.123pan.cn/123pan/B1c5vd-j89L3) |
 
 After downloading, place the resource files in the PGpath project directory or specify their locations using the corresponding command-line arguments.
 
@@ -368,26 +368,35 @@ The final output is a linear FASTA reference.
 
 Use this section only when training a new PGpath model.
 
-### 6.1 Data Partitioning and Leakage Prevention
+### 6.1 Data Partitioning
 
-For a new dataset, split independent source samples into disjoint **60% training, 20% validation, and 20% test source pools before constructing simulated populations**. Construct populations independently within each source pool.
+`pgpath_train.py` randomly splits the rows of the supplied feature matrix and their aligned labels into **60% training, 20% validation, and 20% test partitions by default**.
 
-- Perform data-dependent filtering and k-mer feature selection using the training partition only.
-- Fit the StandardScaler and export inference scaler statistics using the training partition only.
-- Use the validation partition for hyperparameter selection.
-- Reserve the test partition for final evaluation only.
+| Partition | Default share of input rows | Use in the current script |
+| --- | --- | --- |
+| Training | 60% | Used for model optimization. |
+| Validation | 20% | Held out from optimization; no validation evaluation is performed. |
+| Test | 20% | Held out from optimization; no test evaluation is performed. |
 
-`pgpath_train.py` expects an already prepared training partition; it does not perform the source split, population construction, feature selection, or validation/test evaluation.
+With the default settings, the script first holds out 40% of the input rows, then divides that held-out set equally into validation and test partitions. The feature-label pairing is preserved. The same seed and the same ordered input reproduce the partition membership. Actual counts may differ slightly from the requested percentages because sample counts must be integers; the script prints the resulting counts.
+
+After reporting the split, the validation and test arrays are discarded. The script does not export split files or sample lists, calculate validation/test metrics, or select a best model using validation results. The learning-rate scheduler uses the training total loss, and the weights saved at completion are from the final training epoch.
+
+This is a row-level split. The script does not group rows by original source sample, construct simulated populations, or select k-mer features. If simulated populations share original source samples, this split alone does not ensure independent source pools.
+
+**Preprocessing behavior:** The script fits `StandardScaler` on the entire input feature matrix and builds label mappings before splitting the data. Therefore, the held-out rows are excluded from model optimization but still contribute to preprocessing. The current implementation should not be described as a strictly leakage-free validation/test workflow. A source-level evaluation with training-only preprocessing requires a separately implemented workflow.
 
 ### 6.2 Train a New PGpath Model
 
-Required training files:
+Required input files:
 
 | File | Description |
 | --- | --- |
-| `features_rigorous_filtered_1967.csv` | Prepared training k-mer feature matrix containing the 1,967 selected features. |
-| `labels.csv` | Branch-node label matrix aligned to the feature-matrix sample IDs. |
-| `label_relations.csv` | Branch-node topological relation file. |
+| `features_rigorous_filtered_1967.csv` | Prepared input matrix containing the 1,967 selected k-mer features; rows are split internally into training, validation, and test partitions. |
+| `labels.csv` | Branch-node label matrix with the same number of rows as the feature matrix and corresponding sample IDs. |
+| `label_relations.csv` | Branch-node topological relations, with `source` and `target` columns containing node IDs. |
+
+The first column of each feature/label CSV contains sample IDs. Keep rows paired correctly: when the same sample IDs appear in a different order, the script reorders the labels to match the feature matrix. If the ID sets differ but row counts match, it prints a warning and uses the existing row order.
 
 Run:
 
@@ -400,14 +409,35 @@ python pgpath_train.py \
   --epochs 500 \
   --batch-size 64 \
   --lambda-graph 1e-4 \
+  --validation-size 0.2 \
+  --test-size 0.2 \
+  --seed 42 \
   --device auto
+```
+
+The split options are optional; omitting them gives the same default 60%/20%/20% split.
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `--validation-size` | `0.2` | Fraction of the entire input reserved for validation. |
+| `--test-size` | `0.2` | Fraction of the entire input reserved for testing. |
+| `--seed` | `42` | Random seed used for data splitting and training initialization. |
+
+The requested training fraction is `1 - validation_size - test_size`. Both held-out fractions must be greater than 0 and less than 1, their sum must be less than 1, and the input must contain enough rows for all three partitions to be non-empty. Even an externally prepared training-only file is split again when passed to this script.
+
+For example, an input containing 100 rows gives:
+
+```text
+Data split: train=60, validation=20, test=20
 ```
 
 The default training configuration uses 500 epochs, batch size 64, hidden dimension 1,024, dropout 0.3, Adam learning rate `1e-3`, weight decay `1e-5`, topology-aware loss weight `1e-4`, and random seed 42.
 
+The command above saves model weights to `trained_model.pth`. If `-o` is omitted, the script saves `pgpath_model_YYYYMMDD_HHMMSS.pth` in the current working directory. The `.pth` file contains the model state dictionary; it does not contain scaler statistics, label mappings, or data partitions.
+
 ### 6.3 Export Selected k-mers and Scaler Statistics
 
-After finalizing the training-only feature matrix, export the selected k-mer list and scaler statistics from that same matrix:
+Export the selected k-mer list and scaler statistics from the **same complete feature matrix passed to `pgpath_train.py -i`**, preserving its feature columns and order. This matches the current training script, which fits its scaler before the internal split. Using only the internal 60% training subset can produce different preprocessing statistics.
 
 ```bash
 python pgpath_prepare_features.py \
@@ -423,7 +453,9 @@ pgpath_selected_kmers.txt
 pgpath_scaler_stats.csv
 ```
 
-These files are required for downstream inference and must be kept together in the exported k-mer order. Do not use validation, test, or pooled data when generating the scaler statistics.
+The exporter uses the supplied feature columns as the selected k-mer list; it does not perform feature selection. For the 1,967-feature matrix above, the list and scaler CSV each contain 1,967 entries in the feature-column order.
+
+Keep these files with the model trained from the same input. For inference, preserve the branch order and per-branch class mapping from the aligned labels used during training, and use the same model hidden dimension. Exporting matching scaler statistics reproduces the existing preprocessing; it does not change the evaluation limitations described in Section 6.1.
 
 ---
 
