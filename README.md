@@ -380,10 +380,6 @@ Use this section only when training a new PGpath model.
 
 With the default settings, the script first holds out 40% of the input rows, then divides that held-out set equally into validation and test partitions. The feature-label pairing is preserved. The same seed and the same ordered input reproduce the partition membership. Actual counts may differ slightly from the requested percentages because sample counts must be integers; the script prints the resulting counts.
 
-After reporting the split, the validation and test arrays are discarded. The script does not export split files or sample lists, calculate validation/test metrics, or select a best model using validation results. The learning-rate scheduler uses the training total loss, and the weights saved at completion are from the final training epoch.
-
-This is a row-level split. The script does not group rows by original source sample, construct simulated populations, or select k-mer features. If simulated populations share original source samples, this split alone does not ensure independent source pools.
-
 **Preprocessing behavior:** The script fits `StandardScaler` on the entire input feature matrix and builds label mappings before splitting the data. Therefore, the held-out rows are excluded from model optimization but still contribute to preprocessing. The current implementation should not be described as a strictly leakage-free validation/test workflow. A source-level evaluation with training-only preprocessing requires a separately implemented workflow.
 
 ### 6.2 Train a New PGpath Model
